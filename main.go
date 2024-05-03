@@ -25,17 +25,15 @@ type serie struct {
 
 func main() {
 	// initialize series with 10k series
-	series := make([]memSeries, 10000)
-	for i := range series {
-		series[i] = memSeries{
-			series: make(map[int]*serie),
-			locks:  make(map[int]stripeLock),
+	memSeries := memSeries{
+		series: make(map[int]*serie),
+		locks:  make(map[int]stripeLock),
+	}
+	for i := 0; i < 10000; i++ {
+		memSeries.series[i] = &serie{
+			id: i,
 		}
-		for j := 0; j < 1000; j++ {
-			series[i].series[j] = &serie{
-				id: j,
-			}
-		}
+		memSeries.locks[i] = stripeLock{}
 	}
 
 	runtime.GOMAXPROCS(3)
@@ -48,8 +46,7 @@ func main() {
 
 		for {
 			writesLoop1 += 1
-			addPointUsingLocks(series[:500])
-			time.Sleep(1 * time.Millisecond)
+			memSeries.addPointUsingLocksBetweenIntervals(0, 500)
 		}
 	}()
 	go func() {
@@ -57,7 +54,7 @@ func main() {
 
 		for {
 			writesLoop2 += 1
-			addPointUsingLocks(series[500:])
+			memSeries.addPointUsingLocksBetweenIntervals(501, 999)
 		}
 	}()
 
@@ -69,9 +66,24 @@ func main() {
 		}
 	}()
 	wg.Wait()
+}
 
-	// write one point to all series
-	addPointUsingLocks(series) // i = 0
+// Create a function for memSeries that iterates its series and adds a point to each one of them
+// using locks
+func (m memSeries) addPointUsingLocksBetweenIntervals(start, end int) {
+	for i := start; i < end; i++ {
+		s, _ := m.series[i]
+		lock, ok := m.locks[s.id]
+		if !ok {
+			m.locks[s.id] = stripeLock{}
+		}
+		lock.Lock()
+		if len(s.points) == 1000 {
+			s.points = s.points[:0] // Reset the slice to avoid memory leak
+		}
+		s.points = append(s.points, 1.0)
+		lock.Unlock()
+	}
 }
 
 func addPointUsingLocks(series []memSeries) {
