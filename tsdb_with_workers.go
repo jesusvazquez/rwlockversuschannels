@@ -1,13 +1,13 @@
 package main
 
-type headWithWorkers struct {
+type tsdbWithWorkers struct {
 	head       *head
 	concurency int
 	workers    []*worker
 }
 
-func newHeadWithWorkers(head *head, concurrency int) *headWithWorkers {
-	h := &headWithWorkers{
+func newTsdbWithWorkers(head *head, concurrency int) *tsdbWithWorkers {
+	h := &tsdbWithWorkers{
 		head:       head,
 		concurency: concurrency,
 	}
@@ -19,4 +19,10 @@ func newHeadWithWorkers(head *head, concurrency int) *headWithWorkers {
 	}
 
 	return h
+}
+
+func (h *tsdbWithWorkers) Append(seriesID int, value float64) error {
+	w := h.workers[0] // TODO choose right worker
+	w.messages <- message{seriesID: seriesID, value: value}
+	return nil
 }

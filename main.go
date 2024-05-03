@@ -40,10 +40,8 @@ func main() {
 		memSeries: &memSeries,
 	}
 
-	t1 := tsdbWithLocks{
-		head:  &h,
-		locks: locks,
-	}
+	t := newTsdbWithLocks(&h, locks)
+	// t := newTsdbWithWorkers(&h, 1)
 
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -53,7 +51,7 @@ func main() {
 
 		for {
 			writesLoop1 += 1
-			t1.appendSamplesToSeriesBetwenRange(0, 5000, float64(writesLoop1))
+			appendSamplesToSeriesBetwenRange(t, 0, 5000, float64(writesLoop1))
 		}
 	}()
 	go func() {
@@ -61,7 +59,7 @@ func main() {
 
 		for {
 			writesLoop2 += 1
-			t1.appendSamplesToSeriesBetwenRange(5001, 9999, float64(writesLoop1))
+			appendSamplesToSeriesBetwenRange(t, 5001, 9999, float64(writesLoop2))
 		}
 	}()
 
@@ -73,4 +71,10 @@ func main() {
 		}
 	}()
 	wg.Wait()
+}
+
+func appendSamplesToSeriesBetwenRange(app Appender, start, end int, value float64) {
+	for i := start; i < end; i++ {
+		_ = app.Append(i, value)
+	}
 }

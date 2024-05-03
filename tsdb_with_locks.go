@@ -12,6 +12,13 @@ type stripeLock struct {
 	_            [40]byte // 24+40 = 64 bytes. The extra padding makes sure locks go in different cache lines. Reduces lock contention and reader starvation
 }
 
+func newTsdbWithLocks(head *head, locks map[int]*stripeLock) *tsdbWithLocks {
+	return &tsdbWithLocks{
+		head:  head,
+		locks: locks,
+	}
+}
+
 func (h *tsdbWithLocks) Append(seriesID int, value float64) error {
 	s, _ := h.head.memSeries.series[seriesID]
 	l, _ := h.locks[s.id]
@@ -20,10 +27,4 @@ func (h *tsdbWithLocks) Append(seriesID int, value float64) error {
 	l.Unlock()
 
 	return nil
-}
-
-func (h *tsdbWithLocks) appendSamplesToSeriesBetwenRange(start, end int, value float64) {
-	for i := start; i < end; i++ {
-		_ = h.Append(i, value)
-	}
 }
