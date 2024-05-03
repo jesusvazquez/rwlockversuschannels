@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+type head struct {
+	memSeries *memSeries
+}
+
 type memSeries struct {
 	series map[int]*serie
 
@@ -13,8 +17,8 @@ type memSeries struct {
 }
 
 type stripeLock struct {
-	sync.RWMutex
-	_ [40]byte
+	sync.RWMutex          // 24 bytes
+	_            [40]byte // 24+40 = 64 bytes. The extra padding makes sure locks go in different cache lines. Reduces lock contention and reader starvation
 }
 
 type serie struct {
@@ -22,8 +26,11 @@ type serie struct {
 	points []float64
 }
 
+type Appender interface {
+	Append(seriesID int, value float64) error
+}
+
 func main() {
-	// initialize series with 10k series
 	memSeries := memSeries{
 		series: make(map[int]*serie),
 		locks:  make(map[int]*stripeLock),
@@ -35,7 +42,6 @@ func main() {
 		memSeries.locks[i] = &stripeLock{}
 	}
 
-	// Create 2 goroutines where the first one writes to the first 500 series and the second one writes to the last 500 series
 	var wg sync.WaitGroup
 	wg.Add(3)
 	var writesLoop1, writesLoop2 int
