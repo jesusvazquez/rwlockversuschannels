@@ -46,7 +46,7 @@ func main() {
 
 		for {
 			writesLoop1 += 1
-			memSeries.addPointUsingLocksBetweenIntervals(0, 500)
+			memSeries.addPointUsingLocksBetweenIntervals(0, 5000)
 		}
 	}()
 	go func() {
@@ -54,7 +54,7 @@ func main() {
 
 		for {
 			writesLoop2 += 1
-			memSeries.addPointUsingLocksBetweenIntervals(501, 999)
+			memSeries.addPointUsingLocksBetweenIntervals(5001, 9999)
 		}
 	}()
 
