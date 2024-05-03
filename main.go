@@ -12,13 +12,6 @@ type head struct {
 
 type memSeries struct {
 	series map[int]*serie
-
-	locks map[int]*stripeLock // 24 bytes
-}
-
-type stripeLock struct {
-	sync.RWMutex          // 24 bytes
-	_            [40]byte // 24+40 = 64 bytes. The extra padding makes sure locks go in different cache lines. Reduces lock contention and reader starvation
 }
 
 type serie struct {
@@ -33,13 +26,23 @@ type Appender interface {
 func main() {
 	memSeries := memSeries{
 		series: make(map[int]*serie),
-		locks:  make(map[int]*stripeLock),
 	}
+
+	locks := make(map[int]*stripeLock) // initializing locks here to avoi concurrent map writes
 	for i := 0; i < 10000; i++ {
 		memSeries.series[i] = &serie{
 			id: i,
 		}
-		memSeries.locks[i] = &stripeLock{}
+		locks[i] = &stripeLock{}
+	}
+
+	h := head{
+		memSeries: &memSeries,
+	}
+
+	t1 := tsdbWithLocks{
+		head:  &h,
+		locks: locks,
 	}
 
 	var wg sync.WaitGroup
@@ -50,7 +53,7 @@ func main() {
 
 		for {
 			writesLoop1 += 1
-			memSeries.addPointUsingLocksBetweenIntervals(0, 5000)
+			t1.appendSamplesToSeriesBetwenRange(0, 5000, float64(writesLoop1))
 		}
 	}()
 	go func() {
@@ -58,7 +61,7 @@ func main() {
 
 		for {
 			writesLoop2 += 1
-			memSeries.addPointUsingLocksBetweenIntervals(5001, 9999)
+			t1.appendSamplesToSeriesBetwenRange(5001, 9999, float64(writesLoop1))
 		}
 	}()
 
@@ -70,22 +73,4 @@ func main() {
 		}
 	}()
 	wg.Wait()
-}
-
-// Create a function for memSeries that iterates its series and adds a point to each one of them
-// using locks
-func (m memSeries) addPointUsingLocksBetweenIntervals(start, end int) {
-	for i := start; i < end; i++ {
-		s, _ := m.series[i]
-		lock, ok := m.locks[s.id]
-		if !ok {
-			m.locks[s.id] = &stripeLock{}
-		}
-		lock.Lock()
-		if len(s.points) == 1000 {
-			s.points = s.points[:0] // Reset the slice to avoid memory leak
-		}
-		s.points = append(s.points, 1.0)
-		lock.Unlock()
-	}
 }
