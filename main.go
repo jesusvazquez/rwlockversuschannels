@@ -9,7 +9,7 @@ import (
 type memSeries struct {
 	series map[int]*serie
 
-	locks map[int]stripeLock // 24 bytes
+	locks map[int]*stripeLock // 24 bytes
 }
 
 type stripeLock struct {
@@ -26,13 +26,13 @@ func main() {
 	// initialize series with 10k series
 	memSeries := memSeries{
 		series: make(map[int]*serie),
-		locks:  make(map[int]stripeLock),
+		locks:  make(map[int]*stripeLock),
 	}
 	for i := 0; i < 10000; i++ {
 		memSeries.series[i] = &serie{
 			id: i,
 		}
-		memSeries.locks[i] = stripeLock{}
+		memSeries.locks[i] = &stripeLock{}
 	}
 
 	// Create 2 goroutines where the first one writes to the first 500 series and the second one writes to the last 500 series
@@ -73,7 +73,7 @@ func (m memSeries) addPointUsingLocksBetweenIntervals(start, end int) {
 		s, _ := m.series[i]
 		lock, ok := m.locks[s.id]
 		if !ok {
-			m.locks[s.id] = stripeLock{}
+			m.locks[s.id] = &stripeLock{}
 		}
 		lock.Lock()
 		if len(s.points) == 1000 {
@@ -81,22 +81,5 @@ func (m memSeries) addPointUsingLocksBetweenIntervals(start, end int) {
 		}
 		s.points = append(s.points, 1.0)
 		lock.Unlock()
-	}
-}
-
-func addPointUsingLocks(series []memSeries) {
-	for i := range series {
-		for _, s := range series[i].series {
-			lock, ok := series[i].locks[s.id]
-			if !ok {
-				series[i].locks[s.id] = stripeLock{}
-			}
-			lock.Lock()
-			if len(s.points) == 1000 {
-				s.points = s.points[:0] // Reset the slice to avoid memory leak
-			}
-			s.points = append(s.points, 1.0)
-			lock.Unlock()
-		}
 	}
 }
