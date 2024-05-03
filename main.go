@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"runtime"
 	"sync"
 	"time"
 )
@@ -36,7 +35,6 @@ func main() {
 		memSeries.locks[i] = stripeLock{}
 	}
 
-	runtime.GOMAXPROCS(3)
 	// Create 2 goroutines where the first one writes to the first 500 series and the second one writes to the last 500 series
 	var wg sync.WaitGroup
 	wg.Add(3)
