@@ -23,7 +23,7 @@ func (h *tsdbWithLocks) Append(seriesID int, value float64) error {
 	s, _ := h.head.memSeries.series[seriesID]
 	l, _ := h.locks[s.id]
 	l.Lock()
-	s.points = append(s.points, value)
+	s.points.Add(value)
 	l.Unlock()
 
 	return nil

@@ -65,5 +65,5 @@ func (w *worker) stopping(_ error) error {
 
 func (w *worker) handleMessage(msg message) {
 	s, _ := w.head.memSeries.series[msg.seriesID]
-	s.points = append(s.points, msg.value)
+	s.points.Add(msg.value)
 }
