@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -40,9 +41,9 @@ func main() {
 		memSeries: &memSeries,
 	}
 
-	t := newTsdbWithLocks(&h, locks)
-	// t := newTsdbWithWorkers(&h, 2)
-	// _ = t.Service.StartAsync(context.Background())
+	// t := newTsdbWithLocks(&h, locks)
+	t := newTsdbWithWorkers(&h, 1)
+	_ = t.Service.StartAsync(context.Background())
 
 	var wg sync.WaitGroup
 	wg.Add(3)

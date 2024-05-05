@@ -46,14 +46,10 @@ func (w *worker) running(ctx context.Context) error {
 	w.wg.Add(1)
 	defer w.wg.Done()
 
-	// optimizationto not have to call time.Now() as often
-	wallclockTicker := time.NewTicker(time.Second)
-
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
-		case w.now = <-wallclockTicker.C:
 		case msg := <-w.messages:
 			w.handleMessage(msg)
 		}
