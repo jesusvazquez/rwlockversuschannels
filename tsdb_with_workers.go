@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	"github.com/grafana/dskit/services"
@@ -11,11 +12,12 @@ import (
 type tsdbWithWorkers struct {
 	services.Service
 
-	head        *head
-	concurency  int
-	workers     []*worker
-	messages    chan message
-	subServices *services.Manager
+	head           *head
+	concurency     int
+	workers        []*worker
+	workerBalancer WorkerBalancer
+	messages       chan message
+	subServices    *services.Manager
 }
 
 func newTsdbWithWorkers(head *head, concurrency int) *tsdbWithWorkers {
@@ -32,6 +34,8 @@ func newTsdbWithWorkers(head *head, concurrency int) *tsdbWithWorkers {
 		h.workers[workerID] = worker
 		subservices = append(subservices, worker)
 	}
+
+	h.workerBalancer = newRoundRobinBalancer(h.workers...)
 
 	h.subServices, _ = services.NewManager(subservices...)
 
@@ -57,11 +61,7 @@ func (h *tsdbWithWorkers) running(svcCtx context.Context) error {
 	for svcCtx.Err() == nil {
 		select {
 		case msg := <-h.messages:
-			if msg.seriesID <= 5000 {
-				w = h.workers[0]
-			} else {
-				w = h.workers[1]
-			}
+			w = h.workerBalancer.Next()
 			w.dispatch(msg)
 		}
 	}
@@ -74,4 +74,22 @@ func (h *tsdbWithWorkers) stopping(_ error) error {
 	defer cancel()
 
 	return errors.Wrap(services.StopManagerAndAwaitStopped(ctx, h.subServices), "unable to stop tsdb subservices")
+}
+
+type WorkerBalancer interface {
+	Next() *worker
+}
+
+type roundrobin struct {
+	workers []*worker
+	next    uint32
+}
+
+func newRoundRobinBalancer(workers ...*worker) *roundrobin {
+	return &roundrobin{workers: workers}
+}
+
+func (r *roundrobin) Next() *worker {
+	n := atomic.AddUint32(&r.next, 1)
+	return r.workers[(int(n)-1)%len(r.workers)]
 }
