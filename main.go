@@ -6,59 +6,22 @@ import (
 	"time"
 )
 
-type head struct {
-	memSeries *memSeries
-}
-
-type memSeries struct {
-	series map[int]*serie
-}
-
-type serie struct {
-	id     int
-	points *pointsRepository
-}
-
-type pointsRepository struct {
-	points []float64
-	count  uint32
-}
-
-func newPointsRepository() *pointsRepository {
-	return &pointsRepository{
-		points: make([]float64, 1000),
-	}
-}
-
-func (p *pointsRepository) Add(point float64) {
-	if p.count == 1000 { // just keep track of 1k and start over to avoid this growing over time
-		p.count = 0
-	}
-	p.points[p.count] = point
-}
-
-type Appender interface {
-	Append(seriesID int, value float64) error
-}
-
 func main() {
 	// Init test head with 10k series
 	memSeries := memSeries{
 		series: make(map[int]*serie),
 	}
-	locks := make(map[int]*stripeLock)
 	for i := 0; i < 10000; i++ {
 		memSeries.series[i] = &serie{
 			id:     i,
 			points: newPointsRepository(),
 		}
-		locks[i] = &stripeLock{}
 	}
 	h := head{
 		memSeries: &memSeries,
 	}
 
-	t := newTsdbWithLocks(&h, locks)
+	t := newTsdbWithLocks(&h)
 	// t := newTsdbWithWorkers(&h, 1)
 	// _ = t.Service.StartAsync(context.Background())
 
