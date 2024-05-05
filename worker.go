@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"github.com/grafana/dskit/services"
 )
 
 type message struct {
@@ -12,6 +14,7 @@ type message struct {
 }
 
 type worker struct {
+	services.Service
 	workerID int
 	ctx      context.Context
 	wg       sync.WaitGroup
@@ -26,9 +29,10 @@ type worker struct {
 func newWorker(workerID int, head *head) *worker {
 	w := &worker{
 		workerID: workerID,
-		messages: make(chan message, 1),
+		messages: make(chan message, 1000),
 		head:     head,
 	}
+	w.Service = services.NewBasicService(nil, w.running, w.stopping)
 	return w
 }
 
@@ -52,7 +56,6 @@ func (w *worker) running(ctx context.Context) error {
 		case w.now = <-wallclockTicker.C:
 		case msg := <-w.messages:
 			w.handleMessage(msg)
-
 		}
 	}
 }

@@ -41,7 +41,8 @@ func main() {
 	}
 
 	t := newTsdbWithLocks(&h, locks)
-	// t := newTsdbWithWorkers(&h, 1)
+	// t := newTsdbWithWorkers(&h, 2)
+	// _ = t.Service.StartAsync(context.Background())
 
 	var wg sync.WaitGroup
 	wg.Add(3)
