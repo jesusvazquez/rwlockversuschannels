@@ -21,7 +21,8 @@ func main() {
 		memSeries: &memSeries,
 	}
 
-	t := newTsdbWithLocks(&h)
+	// t := newTsdbWithLocks(&h)
+	t := newTsdbWithChannels(&h)
 	// t := newTsdbWithWorkers(&h, 1)
 	// _ = t.Service.StartAsync(context.Background())
 
